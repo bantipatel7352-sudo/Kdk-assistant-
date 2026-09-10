@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KDK</title>
+<style>
+  :root{
+    --ink:#151217;
+    --paper:#F7F4EF;
+    --panel:#FFFFFF;
+    --line:rgba(21,18,23,0.10);
+    --violet:#5B3BB8;
+    --violet-deep:#3D2680;
+    --coral:#E5573F;
+    --mic-idle:#151217;
+    --mic-listen:#5B3BB8;
+    --mic-speak:#E5573F;
+    --muted:#6B6470;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Noto Sans Devanagari',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    overscroll-behavior:none;
+    min-height:100vh;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    padding:22px 20px 14px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .brand .mark{
+    font-size:26px;
+    font-weight:700;
+    letter-spacing:0.5px;
+  }
+  .brand .tag{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .status-pill{
+    font-size:11px;
+    padding:5px 10px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    color:var(--muted);
+    background:var(--panel);
+  }
+  .status-pill.on{ color:#1D7A4C; border-color:#1D7A4C33; background:#1D7A4C10; }
+
+  /* ---------- Transcript area ---------- */
+  main{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:0 16px;
+    overflow:hidden;
+  }
+  #log{
+    flex:1;
+    overflow-y:auto;
+    padding:10px 4px 20px 4px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .bubble{
+    max-width:82%;
+    padding:12px 14px;
+    border-radius:16px;
+    font-size:15px;
+    line-height:1.5;
+    white-space:pre-wrap;
+    animation:rise .25s ease-out;
+  }
+  @keyframes rise{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .me{
+    align-self:flex-end;
+    background:var(--violet);
+    color:#fff;
+    border-bottom-right-radius:4px;
+  }
+  .kdk{
+    align-self:flex-start;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-bottom-left-radius:4px;
+  }
+  .kdk.action{
+    border-color:var(--coral);
+    color:var(--coral);
+    font-weight:600;
+  }
+  .sys{
+    align-self:center;
+    font-size:12px;
+    color:var(--muted);
+    padding:2px 10px;
+  }
+
+  /* ---------- Mic dock ---------- */
+  .dock{
+    padding:18px 20px 30px 20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:14px;
+  }
+  #hint{
+    font-size:13px;
+    color:var(--muted);
+    min-height:18px;
+    text-align:center;
+  }
+  #micBtn{
+    width:84px;
+    height:84px;
+    border-radius:50%;
+    border:none;
+    background:var(--mic-idle);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 8px 24px rgba(21,18,23,0.25);
+    transition:background .25s ease, transform .15s ease;
+    cursor:pointer;
+  }
+  #micBtn:active{ transform:scale(0.94); }
+  #micBtn.listening{
+    background:var(--mic-listen);
+    animation:pulse 1.4s infinite;
+  }
+  #micBtn.speaking{
+    background:var(--mic-speak);
+  }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(91,59,184,0.45); }
+    70%{ box-shadow:0 0 0 22px rgba(91,59,184,0); }
+    100%{ box-shadow:0 0 0 0 rgba(91,59,184,0); }
+  }
+  #micBtn svg{ width:32px; height:32px; }
+
+  .row-controls{
+    display:flex;
+    gap:10px;
+  }
+  .chip{
+    font-size:12px;
+    padding:7px 12px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--ink);
+  }
+
+  /* ---------- Setup overlay ---------- */
+  #setup{
+    position:fixed; inset:0;
+    background:var(--paper);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding:28px;
+    z-index:10;
+  }
+  #setup h1{ font-size:22px; margin:0 0 6px 0; }
+  #setup p{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 20px 0; }
+  #setup label{ font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
+  #setup input{
+    width:100%;
+    padding:13px 14px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    font-size:14px;
+    margin-bottom:14px;
+    background:var(--panel);
+  }
+  #setup button{
+    width:100%;
+    padding:14px;
+    border-radius:12px;
+    border:none;
+    background:var(--violet);
+    color:#fff;
+    font-size:15px;
+    font-weight:600;
+  }
+  #setup .skip{
+    background:none;
+    color:var(--muted);
+    font-size:12px;
+    margin-top:12px;
+    text-decoration:underline;
+  }
+  #setup .note{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:16px;
+    line-height:1.5;
+  }
+  #unsupported{
+    position:fixed; inset:0;
+    background:var(--paper);
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    padding:28px;
+    text-align:center;
+    z-index:20;
+  }
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>KDK सेटअप करें</h1>
+  <p>KDK को जवाब देने के लिए आपकी Gemini API key चाहिए। यह सिर्फ़ आपके फ़ोन पर, इसी ब्राउज़र में सेव होती है — कहीं और नहीं भेजी जाती।</p>
+  <label>Gemini API Key</label>
+  <input type="password" id="apiKeyInput" placeholder="AIza... यहाँ पेस्ट करें" autocomplete="off">
+  <button id="saveKeyBtn">सेव करें और शुरू करें</button>
+  <button class="skip" id="skipKeyBtn">अभी के लिए बिना key के आगे बढ़ें (सिर्फ़ कमांड्स चलेंगी)</button>
+  <div class="note">Key कहाँ से लें: Google AI Studio (aistudio.google.com) खोलें → "Get API key" पर टैप करें → key कॉपी करके यहाँ पेस्ट करें।</div>
+</div>
+
+<div id="unsupported">
+  <h1>यह ब्राउज़र सपोर्ट नहीं करता</h1>
+  <p>आवाज़ पहचानने के लिए कृपया Android पर <b>Chrome</b> ब्राउज़र में यह पेज खोलें।</p>
+</div>
+
+<header>
+  <div class="brand">
+    <span class="mark">KDK</span>
+    <span class="tag">वॉइस असिस्टेंट</span>
+  </div>
+  <span class="status-pill" id="apiStatus">API: नहीं जुड़ा</span>
+</header>
+
+<main>
+  <div id="log"></div>
+</main>
+
+<div class="dock">
+  <div id="hint">बोलने के लिए माइक दबाएँ</div>
+  <button id="micBtn" aria-label="बोलें">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+      <line x1="12" y1="19" x2="12" y2="23"></line>
+      <line x1="8" y1="23" x2="16" y2="23"></line>
+    </svg>
+  </button>
+  <div class="row-controls">
+    <button class="chip" id="clearBtn">बातचीत साफ़ करें</button>
+    <button class="chip" id="keyBtn">API key बदलें</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   KDK — Voice Assistant Prototype
+   -------------------------------------------------------------------------
+   ARCHITECTURE (for future extension):
+   1. Speech-to-text  -> Web Speech API (webkitSpeechRecognition), lang hi-IN
+   2. Command layer   -> COMMANDS registry (array of {match, action}) checked
+                          FIRST, before falling back to Gemini. Add new voice
+                          commands by pushing new entries into COMMANDS — see
+                          bottom of this script for the exact pattern.
+   3. Brain layer     -> If no command matches, transcript is sent to Gemini
+                          API (callGemini) for a natural-language reply.
+   4. Text-to-speech  -> Web Speech Synthesis API, tuned to a female hi-IN
+                          voice when available.
+   5. App-open layer  -> openAndroidApp() uses Android "intent://" URIs,
+                          which Chrome on Android understands and hands off
+                          to the OS app chooser / matching app.
+   ========================================================================= */
+
+// ---------- DOM ----------
+const micBtn = document.getElementById('micBtn');
+const log = document.getElementById('log');
+const hint = document.getElementById('hint');
+const setup = document.getElementById('setup');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const saveKeyBtn = document.getElementById('saveKeyBtn');
+const skipKeyBtn = document.getElementById('skipKeyBtn');
+const apiStatus = document.getElementById('apiStatus');
+const clearBtn = document.getElementById('clearBtn');
+const keyBtn = document.getElementById('keyBtn');
+const unsupported = document.getElementById('unsupported');
+
+// ---------- State ----------
+let GEMINI_KEY = localStorage.getItem('kdk_gemini_key') || '';
+let recognition = null;
+let isListening = false;
+let selectedVoice = null;
+
+// ---------- Setup screen ----------
+function refreshApiStatus(){
+  if(GEMINI_KEY){
+    apiStatus.textContent = 'API: जुड़ा हुआ';
+    apiStatus.classList.add('on');
+  } else {
+    apiStatus.textContent = 'API: नहीं जुड़ा';
+    apiStatus.classList.remove('on');
+  }
+}
+
+function openSetup(){ setup.style.display = 'flex'; apiKeyInput.value = GEMINI_KEY || ''; }
+function closeSetup(){ setup.style.display = 'none'; }
+
+saveKeyBtn.onclick = () => {
+  const val = apiKeyInput.value.trim();
+  if(val){
+    GEMINI_KEY = val;
+    localStorage.setItem('kdk_gemini_key', val);
+  }
+  refreshApiStatus();
+  closeSetup();
+};
+skipKeyBtn.onclick = () => { closeSetup(); refreshApiStatus(); };
+keyBtn.onclick = openSetup;
+
+if(GEMINI_KEY){ closeSetup(); refreshApiStatus(); } else { openSetup(); }
+
+// ---------- Chat log helpers ----------
+function addBubble(text, who, isAction){
+  const div = document.createElement('div');
+  div.className = 'bubble ' + who + (isAction ? ' action' : '');
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+function addSys(text){
+  const div = document.createElement('div');
+  div.className = 'sys';
+  div.textContent = text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+clearBtn.onclick = () => { log.innerHTML = ''; addSys('बातचीत साफ़ कर दी गई'); };
+
+// ---------- Speech recognition (STT) ----------
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if(!SpeechRecognition){
+  unsupported.style.display = 'flex';
+} else {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'hi-IN';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.classList.add('listening');
+    hint.textContent = 'सुन रहा हूँ...';
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    hint.textContent = 'बोलने के लिए माइक दबाएँ';
+  };
+
+  recognition.onerror = (e) => {
+    isListening = false;
+    micBtn.classList.remove('listening');
+    if(e.error === 'no-speech'){
+      hint.textContent = 'कुछ सुनाई नहीं दिया, फिर कोशिश करें';
+    } else if(e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+      hint.textContent = 'माइक्रोफ़ोन की अनुमति दें';
+      addSys('माइक्रोफ़ोन एक्सेस ब्लॉक है — ब्राउज़र सेटिंग्स में अनुमति दें');
+    } else {
+      hint.textContent = 'बोलने के लिए माइक दबाएँ';
+    }
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    addBubble(transcript, 'me');
+    handleUserInput(transcript);
+  };
+}
+
+micBtn.onclick = () => {
+  if(!recognition) return;
+  if(isListening){
+    recognition.stop();
+    return;
+  }
+  // Stop any ongoing speech before listening again
+  window.speechSynthesis.cancel();
+  try{ recognition.start(); } catch(e){ /* already started */ }
+};
+
+// ---------- Text-to-speech (TTS) ----------
+function pickFemaleHindiVoice(){
+  const voices = window.speechSynthesis.getVoices();
+  if(!voices.length) return null;
+  // Prefer explicit hi-IN female-sounding voices, then any hi-IN, then any Google voice
+  let v = voices.find(v => v.lang === 'hi-IN' && /female|woman/i.test(v.name));
+  if(!v) v = voices.find(v => v.lang === 'hi-IN');
+  if(!v) v = voices.find(v => v.lang.startsWith('hi'));
+  if(!v) v = voices.find(v => /google/i.test(v.name) && /female/i.test(v.name));
+  return v || voices[0];
+}
+window.speechSynthesis.onvoiceschanged = () => { selectedVoice = pickFemaleHindiVoice(); };
+selectedVoice = pickFemaleHindiVoice();
+
+function speak(text){
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'hi-IN';
+  utter.pitch = 1.15;   // slightly higher pitch -> more natural "girl voice" feel
+  utter.rate = 1.0;
+  if(selectedVoice) utter.voice = selectedVoice;
+  utter.onstart = () => micBtn.classList.add('speaking');
+  utter.onend = () => micBtn.classList.remove('speaking');
+  window.speechSynthesis.speak(utter);
+}
+
+// ---------- Android app-launch layer ----------
+// Uses Android intent:// URIs. Works in Chrome on Android; on other
+// browsers/platforms it will just silently fail to hand off (expected —
+// this is a browser-based prototype, see notes at bottom of chat for the
+// native-app upgrade path).
+function openAndroidApp(intentUrl, fallbackUrl){
+  try{
+    window.location.href = intentUrl;
+  }catch(e){
+    if(fallbackUrl) window.location.href = fallbackUrl;
+  }
+}
+
+const APP_LAUNCHERS = {
+  youtube: () => openAndroidApp(
+    'intent://www.youtube.com/#Intent;package=com.google.android.youtube;scheme=https;end',
+    'https://www.youtube.com'
+  ),
+  chrome: () => openAndroidApp(
+    'intent://www.google.com/#Intent;package=com.android.chrome;scheme=https;end',
+    'https://www.google.com'
+  ),
+  settings: () => openAndroidApp(
+    'intent:#Intent;action=android.settings.SETTINGS;end',
+    ''
+  ),
+  camera: () => openAndroidApp(
+    'intent:#Intent;action=android.media.action.IMAGE_CAPTURE;end',
+    ''
+  ),
+  whatsapp: () => openAndroidApp(
+    'intent://send#Intent;package=com.whatsapp;scheme=smsto;end',
+    ''
+  ),
+  maps: () => openAndroidApp(
+    'intent://maps.google.com/#Intent;package=com.google.android.apps.maps;scheme=https;end',
+    'https://maps.google.com'
+  ),
+  gmail: () => openAndroidApp(
+    'intent://mail.google.com/#Intent;package=com.google.android.gm;scheme=https;end',
+    'https://mail.google.com'
+  ),
+  calculator: () => openAndroidApp(
+    'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.APP_CALCULATOR;end',
+    ''
+  )
+};
+
+/* =========================================================================
+   COMMAND REGISTRY
+   -------------------------------------------------------------------------
+   This is the extensibility point. Each entry has:
+     - match(text): returns true if this command should handle the input
+                     (text is already lowercased, Hindi+English both checked)
+     - action(text): what to do; return a string to speak + show as reply
+   Order matters — first match wins. Keep specific matches above generic
+   ones. To add a new voice command, copy the pattern at the bottom
+   ("TEMPLATE FOR NEW COMMANDS") and push it into COMMANDS.
+   ========================================================================= */
+const COMMANDS = [
+  {
+    name: 'open_youtube',
+    match: (t) => /youtube|यूट्यूब|यूटयूब/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.youtube(); return 'YouTube खोल रही हूँ'; }
+  },
+  {
+    name: 'open_chrome',
+    match: (t) => /chrome|क्रोम/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.chrome(); return 'Chrome खोल रही हूँ'; }
+  },
+  {
+    name: 'open_settings',
+    match: (t) => /settings|सेटिंग/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.settings(); return 'Settings खोल रही हूँ'; }
+  },
+  {
+    name: 'open_camera',
+    match: (t) => /camera|कैमरा/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.camera(); return 'Camera खोल रही हूँ'; }
+  },
+  {
+    name: 'open_whatsapp',
+    match: (t) => /whatsapp|व्हाट्सएप|वाट्सएप/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.whatsapp(); return 'WhatsApp खोल रही हूँ'; }
+  },
+  {
+    name: 'open_maps',
+    match: (t) => /(google )?maps|मैप्स|नक्शा/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.maps(); return 'Maps खोल रही हूँ'; }
+  },
+  {
+    name: 'open_gmail',
+    match: (t) => /gmail|जीमेल/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.gmail(); return 'Gmail खोल रही हूँ'; }
+  },
+  {
+    name: 'open_calculator',
+    match: (t) => /calculator|कैलकुलेटर/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => { APP_LAUNCHERS.calculator(); return 'Calculator खोल रही हूँ'; }
+  },
+
+  /* ---------------------------------------------------------------------
+     TEMPLATE FOR NEW COMMANDS — copy this block, edit, and add to the
+     array above open_calculator (so app-open commands stay grouped):
+
+  {
+    name: 'open_spotify',
+    match: (t) => /spotify|स्पॉटिफाई/i.test(t) && /खोल|open|चला/i.test(t),
+    action: () => {
+      openAndroidApp(
+        'intent://open.spotify.com/#Intent;package=com.spotify.music;scheme=https;end',
+        'https://open.spotify.com'
+      );
+      return 'Spotify खोल रही हूँ';
+    }
+  },
+
+  --------------------------------------------------------------------- */
+];
+
+function tryCommand(text){
+  for(const cmd of COMMANDS){
+    if(cmd.match(text)) return cmd.action(text);
+  }
+  return null; // no command matched
+}
+
+// ---------- Gemini brain layer ----------
+async function callGemini(userText){
+  if(!GEMINI_KEY){
+    return 'मुझे जवाब देने के लिए Gemini API key चाहिए। ऊपर "API key बदलें" दबाकर key डालें।';
+  }
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+  const body = {
+    contents: [{
+      parts: [{ text: userText }]
+    }],
+    systemInstruction: {
+      parts: [{
+        text: "तुम KDK हो, एक दोस्ताना हिन्दी बोलने वाली महिला AI वॉइस असिस्टेंट। हमेशा हिन्दी (देवनागरी) में, छोटे और बोलचाल के अंदाज़ में जवाब दो — जवाब ऐसा हो जो बोलकर सुनाया जा सके, ज़्यादा लंबा और लिस्ट वाला न हो। 2-3 वाक्यों में जवाब दो जब तक ज़्यादा जानकारी न माँगी जाए।"
+      }]
+    }
+  };
+
+  try{
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      console.error('Gemini error', res.status, errText);
+      if(res.status === 400 || res.status === 403){
+        return 'API key सही नहीं लग रही। कृपया "API key बदलें" से सही key डालें।';
+      }
+      return 'माफ़ करें, अभी जवाब नहीं मिल पाया। दोबारा कोशिश करें।';
+    }
+    const data = await res.json();
+    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    return reply ? reply.trim() : 'माफ़ करें, समझ नहीं आया। फिर से बोलें।';
+  }catch(e){
+    console.error(e);
+    return 'इंटरनेट कनेक्शन में दिक्कत लग रही है।';
+  }
+}
+
+// ---------- Main dispatch ----------
+async function handleUserInput(text){
+  const commandReply = tryCommand(text);
+  if(commandReply){
+    addBubble(commandReply, 'kdk', true);
+    speak(commandReply);
+    return;
+  }
+  hint.textContent = 'सोच रही हूँ...';
+  const reply = await callGemini(text);
+  hint.textContent = isListening ? 'सुन रहा हूँ...' : 'बोलने के लिए माइक दबाएँ';
+  addBubble(reply, 'kdk');
+  speak(reply);
+}
+
+// ---------- Welcome ----------
+addBubble('नमस्ते! मैं KDK हूँ। माइक दबाकर मुझसे बात करें — या कहें "YouTube खोलो", "Chrome खोलो", "Settings खोलो"।', 'kdk');
+</script>
+</body>
+    </html>
