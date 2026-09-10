@@ -564,43 +564,90 @@ function tryCommand(text){
 }
 
 // ---------- Gemini brain layer ----------
+// MODEL_NAME: change this single constant if Google retires/renames the
+// model later. Check https://ai.google.dev/gemini-api/docs/models for the
+// current recommended flash-tier model if KDK starts getting 404s.
+const MODEL_NAME = 'gemini-3.6-flash';
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent`;
+
 async function callGemini(userText){
   if(!GEMINI_KEY){
     return 'मुझे जवाब देने के लिए Gemini API key चाहिए। ऊपर "API key बदलें" दबाकर key डालें।';
   }
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+
   const body = {
     contents: [{
+      role: 'user',
       parts: [{ text: userText }]
     }],
     systemInstruction: {
+      role: 'system',
       parts: [{
         text: "तुम KDK हो, एक दोस्ताना हिन्दी बोलने वाली महिला AI वॉइस असिस्टेंट। हमेशा हिन्दी (देवनागरी) में, छोटे और बोलचाल के अंदाज़ में जवाब दो — जवाब ऐसा हो जो बोलकर सुनाया जा सके, ज़्यादा लंबा और लिस्ट वाला न हो। 2-3 वाक्यों में जवाब दो जब तक ज़्यादा जानकारी न माँगी जाए।"
       }]
     }
   };
 
+  let res;
   try{
-    const res = await fetch(endpoint, {
+    // Key goes in a header, not the URL — keeps it out of browser/network
+    // logs and out of the request URL that could get copied accidentally.
+    res = await fetch(GEMINI_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_KEY
+      },
       body: JSON.stringify(body)
     });
-    if(!res.ok){
-      const errText = await res.text();
-      console.error('Gemini error', res.status, errText);
-      if(res.status === 400 || res.status === 403){
-        return 'API key सही नहीं लग रही। कृपया "API key बदलें" से सही key डालें।';
-      }
-      return 'माफ़ करें, अभी जवाब नहीं मिल पाया। दोबारा कोशिश करें।';
-    }
-    const data = await res.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return reply ? reply.trim() : 'माफ़ करें, समझ नहीं आया। फिर से बोलें।';
-  }catch(e){
-    console.error(e);
-    return 'इंटरनेट कनेक्शन में दिक्कत लग रही है।';
+  }catch(networkErr){
+    console.error('KDK network error reaching Gemini:', networkErr.message);
+    return 'इंटरनेट कनेक्शन नहीं मिल पा रहा। Wi-Fi या मोबाइल डेटा जाँचकर फिर कोशिश करें।';
   }
+
+  if(!res.ok){
+    let errBody = null;
+    try{ errBody = await res.json(); }catch(_){ /* body wasn't JSON */ }
+    const apiStatus = errBody?.error?.status || '';
+    const apiMessage = errBody?.error?.message || '';
+    // Never log the key itself — only status/message for debugging.
+    console.error('KDK Gemini API error:', res.status, apiStatus, apiMessage);
+
+    switch(res.status){
+      case 400:
+        if(apiStatus === 'INVALID_ARGUMENT' && /api key/i.test(apiMessage)){
+          return 'API key का फ़ॉर्मेट सही नहीं है। कृपया "API key बदलें" से दोबारा सही key पेस्ट करें।';
+        }
+        return 'भेजे गए request में कोई गड़बड़ी है (400)। दोबारा कोशिश करें, अगर समस्या बनी रहे तो key दोबारा सेव करें।';
+      case 401:
+        return 'API key ग़लत या अमान्य है (401)। "API key बदलें" से सही key डालें।';
+      case 403:
+        return 'इस API key को अनुमति नहीं है (403) — या तो key ग़लत है, या Google AI Studio में इस key की permission/billing सेटिंग में समस्या है।';
+      case 404:
+        return `Gemini model "${MODEL_NAME}" फ़िलहाल उपलब्ध नहीं है (404)। हो सकता है Google ने यह model बदल दिया हो — code में MODEL_NAME अपडेट करने की ज़रूरत हो सकती है।`;
+      case 429:
+        return 'आपकी Gemini API की मुफ़्त कोटा सीमा (quota) फ़िलहाल ख़त्म हो गई है (429)। कुछ देर बाद फिर कोशिश करें।';
+      case 500:
+      case 503:
+        return 'Gemini के सर्वर में अभी अस्थायी समस्या है। कृपया थोड़ी देर बाद फिर कोशिश करें।';
+      default:
+        return `जवाब नहीं मिल पाया (त्रुटि कोड ${res.status})। दोबारा कोशिश करें।`;
+    }
+  }
+
+  const data = await res.json();
+
+  // A 200 response can still come back with no candidate (e.g. blocked by
+  // safety filters) — handle that explicitly instead of silently failing.
+  const finishReason = data?.candidates?.[0]?.finishReason;
+  const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if(!reply){
+    if(finishReason === 'SAFETY'){
+      return 'इस सवाल का जवाब सुरक्षा नीति के कारण नहीं दिया जा सकता।';
+    }
+    return 'माफ़ करें, समझ नहीं आया। कृपया फिर से बोलें।';
+  }
+  return reply.trim();
 }
 
 // ---------- Main dispatch ----------
@@ -622,4 +669,4 @@ async function handleUserInput(text){
 addBubble('नमस्ते! मैं KDK हूँ। माइक दबाकर मुझसे बात करें — या कहें "YouTube खोलो", "Chrome खोलो", "Settings खोलो"।', 'kdk');
 </script>
 </body>
-    </html>
+</html>
