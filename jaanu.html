@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Jaanu</title>
+<style>
+  :root{
+    --bg:#0B0A12;
+    --surface:#15131F;
+    --surface-2:#1F1B2E;
+    --line:rgba(255,255,255,0.08);
+    --ink:#EDEAF6;
+    --muted:#9691A8;
+    --violet:#6C4CF0;
+    --violet-2:#9B5DE5;
+    --coral:#FF6F61;
+    --teal:#2DD4BF;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%; margin:0;}
+  body{
+    font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,'Noto Sans Devanagari',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+    overscroll-behavior:none;
+  }
+  button{font-family:inherit;}
+
+  /* ---------------- Top bar ---------------- */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 18px 8px 18px;
+  }
+  .iconbtn{
+    width:38px; height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--surface-2);
+    color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .iconbtn svg{width:18px; height:18px;}
+  .brand{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    background:linear-gradient(90deg,var(--violet-2),var(--coral));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+
+  /* ---------------- Screens ---------------- */
+  main{
+    flex:1;
+    overflow-y:auto;
+    padding:0 18px 100px 18px;
+  }
+  .screen{ display:none; animation:fade .2s ease-out; }
+  .screen.active{ display:block; }
+  @keyframes fade{ from{opacity:0;} to{opacity:1;} }
+
+  /* ---------------- Home: avatar + status ---------------- */
+  .avatar-wrap{
+    display:flex; justify-content:center;
+    margin:18px 0 10px 0;
+  }
+  #avatarCanvas{ width:190px; height:190px; }
+
+  .status-text{
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    min-height:20px;
+    margin-bottom:6px;
+  }
+  .error-text{
+    text-align:center;
+    color:var(--coral);
+    font-size:13px;
+    min-height:16px;
+  }
+
+  .last-reply{
+    background:var(--surface-2);
+    border-radius:16px;
+    padding:14px;
+    font-size:14px;
+    line-height:1.5;
+    margin:14px 0;
+    white-space:pre-wrap;
+  }
+
+  .mic-dock{
+    display:flex; flex-direction:column; align-items:center;
+    margin:26px 0 22px 0;
+  }
+  #micBtn{
+    width:96px; height:96px;
+    border-radius:50%;
+    border:none;
+    background:radial-gradient(circle at 35% 30%, var(--violet-2), var(--violet));
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 10px 30px rgba(108,76,240,0.35);
+    cursor:pointer;
+    transition:transform .15s ease, background .2s ease;
+  }
+  #micBtn.listening{
+    background:radial-gradient(circle at 35% 30%, var(--violet-2), var(--violet));
+    animation:micpulse 1s infinite;
+  }
+  #micBtn.speaking{
+    background:radial-gradient(circle at 35% 30%, var(--coral), #C4453A);
+  }
+  #micBtn.thinking{
+    background:radial-gradient(circle at 35% 30%, var(--teal), #17948A);
+  }
+  @keyframes micpulse{
+    0%{ box-shadow:0 0 0 0 rgba(155,93,229,0.45); }
+    70%{ box-shadow:0 0 0 26px rgba(155,93,229,0); }
+    100%{ box-shadow:0 0 0 0 rgba(155,93,229,0); }
+  }
+  #micBtn svg{ width:34px; height:34px; }
+
+  .quick-label{
+    color:var(--muted); font-size:12px; margin:8px 0 8px 2px;
+  }
+  .quick-row{
+    display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;
+  }
+  .chip{
+    flex:none;
+    font-size:13px;
+    padding:9px 14px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--ink);
+    white-space:nowrap;
+    cursor:pointer;
+  }
+
+  /* ---------------- Chat screen ---------------- */
+  #chatLog{
+    display:flex; flex-direction:column; gap:10px;
+    padding-top:14px;
+  }
+  .bubble{
+    max-width:80%;
+    padding:12px 14px;
+    border-radius:16px;
+    font-size:14.5px;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
+  .bubble.user{ align-self:flex-end; background:var(--violet); color:#fff; border-bottom-right-radius:4px; }
+  .bubble.jaanu{ align-self:flex-start; background:var(--surface-2); border-bottom-left-radius:4px; }
+  .bubble.command{ border:1px solid var(--coral); }
+
+  .chat-input-row{
+    position:fixed; left:0; right:0; bottom:64px;
+    display:flex; gap:8px; align-items:center;
+    padding:10px 14px;
+    background:var(--bg);
+    border-top:1px solid var(--line);
+  }
+  #chatText{
+    flex:1;
+    padding:11px 14px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--ink);
+    font-size:14px;
+    outline:none;
+  }
+  .roundbtn{
+    width:40px; height:40px; border-radius:50%; border:none;
+    background:var(--surface-2); color:var(--ink);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .roundbtn.send{ background:var(--violet); }
+  .roundbtn svg{ width:18px; height:18px; }
+
+  /* ---------------- Settings screen ---------------- */
+  h2{ font-size:18px; margin:18px 0 4px 0; }
+  .section-label{ color:var(--muted); font-size:12px; margin:18px 0 8px 0; }
+  .option-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 0;
+  }
+  .field{
+    width:100%;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--ink);
+    font-size:14px;
+    margin-top:8px;
+    outline:none;
+  }
+  .btn{
+    padding:12px 18px;
+    border-radius:12px;
+    border:none;
+    background:var(--violet);
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:10px;
+  }
+  .btn.ghost{ background:var(--surface-2); color:var(--ink); }
+  .btn.danger{ background:var(--coral); }
+  .switch{
+    width:44px; height:26px;
+    border-radius:20px;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+    position:relative;
+    cursor:pointer;
+    flex:none;
+  }
+  .switch.on{ background:var(--violet); }
+  .switch .knob{
+    position:absolute; top:2px; left:2px;
+    width:20px; height:20px; border-radius:50%;
+    background:#fff;
+    transition:left .15s ease;
+  }
+  .switch.on .knob{ left:20px; }
+  .radio-row{ display:flex; align-items:center; gap:10px; padding:8px 0; }
+  .radio-dot{
+    width:18px; height:18px; border-radius:50%;
+    border:2px solid var(--muted);
+    display:flex; align-items:center; justify-content:center;
+    flex:none;
+  }
+  .radio-dot.selected{ border-color:var(--violet); }
+  .radio-dot.selected::after{
+    content:''; width:10px; height:10px; border-radius:50%; background:var(--violet);
+  }
+  .info-box{
+    background:var(--surface-2);
+    border-radius:12px;
+    padding:13px;
+    font-size:12.5px;
+    line-height:1.6;
+    color:var(--muted);
+    margin-top:10px;
+  }
+
+  /* ---------------- Memories screen ---------------- */
+  .memory-item{
+    background:var(--surface-2);
+    border-radius:14px;
+    padding:13px;
+    margin-bottom:10px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .memory-item .txt{ font-size:14px; }
+  .memory-item .del{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:18px; }
+  .empty-note{ color:var(--muted); font-size:14px; margin-top:16px; }
+
+  /* ---------------- Bottom nav ---------------- */
+  nav{
+    position:fixed; left:0; right:0; bottom:0;
+    display:flex;
+    background:var(--surface);
+    border-top:1px solid var(--line);
+    padding:8px 0 max(8px, env(safe-area-inset-bottom)) 0;
+    z-index:5;
+  }
+  .navbtn{
+    flex:1;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    background:none; border:none; color:var(--muted);
+    font-size:11px;
+    cursor:pointer;
+    padding:4px 0;
+  }
+  .navbtn.active{ color:var(--violet-2); }
+  .navbtn svg{ width:20px; height:20px; }
+
+  /* ---------------- Setup overlay ---------------- */
+  #setup{
+    position:fixed; inset:0;
+    background:var(--bg);
+    display:flex; flex-direction:column; justify-content:center;
+    padding:28px;
+    z-index:20;
+  }
+  #setup h1{ font-size:22px; margin:0 0 6px 0; }
+  #setup p{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 20px 0; }
+  #unsupported{
+    position:fixed; inset:0; background:var(--bg);
+    display:none; flex-direction:column; justify-content:center;
+    padding:28px; text-align:center; z-index:30;
+  }
+</style>
+</head>
+<body>
+
+<div id="unsupported">
+  <h1>यह ब्राउज़र सपोर्ट नहीं करता</h1>
+  <p>आवाज़ पहचानने के लिए कृपया Android पर <b>Chrome</b> ब्राउज़र में यह पेज खोलें।</p>
+</div>
+
+<div id="setup">
+  <h1>Jaanu में आपका स्वागत है</h1>
+  <p>Jaanu डिफ़ॉल्ट रूप से बिना किसी cloud API के, सिर्फ़ कमांड्स के ज़रिए काम करती है — YouTube खोलना, कॉल करना, समय बताना वगैरह तुरंत काम करेगा। बातचीत के लिए बाद में Settings में अपना खुद का cloud server जोड़ सकते हैं।</p>
+  <button class="btn" id="setupStart">शुरू करें</button>
+</div>
+
+<header>
+  <button class="iconbtn" id="menuBtn" aria-label="मेन्यू">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+  </button>
+  <span class="brand">Jaanu</span>
+  <button class="iconbtn" id="notifBtn" aria-label="सूचनाएँ">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+  </button>
+</header>
+
+<main>
+
+  <!-- ================= HOME ================= -->
+  <section class="screen active" id="screen-home">
+    <div class="avatar-wrap"><canvas id="avatarCanvas" width="380" height="380"></canvas></div>
+    <div class="status-text" id="statusText">बोलने के लिए माइक दबाएँ, या "Jaanu" बोलें</div>
+    <div class="error-text" id="errorText"></div>
+
+    <div class="last-reply" id="lastReply" style="display:none;"></div>
+
+    <div class="mic-dock">
+      <button id="micBtn" aria-label="बोलें">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" y1="19" x2="12" y2="23"></line>
+          <line x1="8" y1="23" x2="16" y2="23"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="quick-label">Quick Actions</div>
+    <div class="quick-row">
+      <button class="chip" data-phrase="gaana bajao">🎵 Music</button>
+      <button class="chip" data-phrase="search karo padhai ke tips">📚 Study</button>
+      <button class="chip" data-phrase="search karo aaj ka mausam">☀️ Weather</button>
+      <button class="chip" data-phrase="aaj ki date kya hai">📅 Today</button>
+    </div>
+  </section>
+
+  <!-- ================= CHAT ================= -->
+  <section class="screen" id="screen-chat">
+    <h2>Jaanu Chat</h2>
+    <div id="chatLog"></div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section class="screen" id="screen-settings">
+    <h2>Settings</h2>
+
+    <div class="section-label">भाषा (Speech recognition)</div>
+    <div style="display:flex; gap:8px;">
+      <button class="chip" data-lang="hi-IN" id="langHi">हिन्दी</button>
+      <button class="chip" data-lang="en-IN" id="langEn">English</button>
+    </div>
+
+    <div class="section-label">AI Backend</div>
+    <div class="radio-row" data-mode="offline"><div class="radio-dot"></div><div>सिर्फ़ Commands (कोई AI नहीं, ऑफ़लाइन)</div></div>
+    <div class="radio-row" data-mode="cloud"><div class="radio-dot"></div><div>Cloud AI (आपका personal server)</div></div>
+
+    <div id="cloudFields" style="display:none;">
+      <input class="field" id="serverUrlInput" placeholder="Server URL (https://...)">
+      <input class="field" id="tokenInput" type="password" placeholder="Auth Token">
+      <button class="btn" id="saveCloudBtn">सेव करें</button>
+      <div class="info-box">Token सिर्फ़ इसी ब्राउज़र में localStorage में रहता है, आपके सर्वर के अलावा कहीं नहीं जाता। कोई भी AI provider key यहाँ कभी नहीं डालनी — आपका सर्वर वह secret अपनी तरफ़ रखता है।</div>
+    </div>
+
+    <div class="section-label">Wake Word</div>
+    <div class="option-row">
+      <div class="switch" id="wakeSwitch"><div class="knob"></div></div>
+      <div>"Jaanu" बोलकर जगाएँ</div>
+    </div>
+    <div class="info-box" id="wakeInfo" style="display:none;">
+      ध्यान दें: ब्राउज़र में true always-on wake word संभव नहीं — यह टैब खुला और सामने होने पर ही सुनती है, बैकग्राउंड में मोबाइल ब्राउज़र इसे रोक देते हैं। बेहतर experience के लिए बताई गई native Android ऐप वाली विधि इस्तेमाल करें (Porcupine wake-word engine के साथ)।
+    </div>
+
+    <div class="section-label">डेटा</div>
+    <button class="btn danger" id="clearAllBtn">सब कुछ मिटाएँ (बातचीत + सेटिंग्स)</button>
+  </section>
+
+  <!-- ================= MEMORIES ================= -->
+  <section class="screen" id="screen-memories">
+    <h2>Memories</h2>
+    <div id="memoriesList"></div>
+    <div class="empty-note" id="memoriesEmpty" style="display:none;">अभी कोई reminder या note सेव नहीं है।</div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="navbtn active" data-screen="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>
+    Home
+  </button>
+  <button class="navbtn" data-screen="chat">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-4-1L3 21l1.5-4.5A8.38 8.38 0 0 1 3 11.5 8.5 8.5 0 0 1 11.5 3 8.5 8.5 0 0 1 21 11.5z"/></svg>
+    Chat
+  </button>
+  <button class="navbtn" data-screen="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    Settings
+  </button>
+  <button class="navbtn" data-screen="memories">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="14" x2="16" y2="14"/></svg>
+    Memories
+  </button>
+</nav>
+
+<script>
+/* =============================================================================
+   JAANU — browser prototype
+   -----------------------------------------------------------------------------
+   Pipeline: Voice Input (Web Speech API, hi-IN) -> AiRouter
+             (COMMANDS registry checked first) -> Android app-open via
+             intent:// links / tel: / sms: -> spoken response (Speech
+             Synthesis) -> AiProvider (Cloud fetch or Offline canned reply)
+             only if no command matched.
+
+   This mirrors the Android app's architecture 1:1 so ideas/commands map
+   directly if you later move to the native app:
+     commands/impl/*.kt      <-> COMMANDS array below
+     ai/AiRouter.kt          <-> route() function
+     ai/CloudAiProvider.kt   <-> callCloudAi()
+     memory/MemoryStore.kt   <-> localStorage helpers
+   ============================================================================= */
+
+// ---------- Persistent state (mirrors MemoryStore.kt) ----------
+const store = {
+  get(key, fallback){ try{ const v = localStorage.getItem('jaanu_'+key); return v===null?fallback:JSON.parse(v);}catch(e){return fallback;} },
+  set(key, value){ localStorage.setItem('jaanu_'+key, JSON.stringify(value)); }
+};
+
+let state = {
+  lang: store.get('lang', 'hi-IN'),
+  aiMode: store.get('aiMode', 'offline'),      // 'offline' | 'cloud'
+  serverUrl: store.get('serverUrl', ''),
+  token: store.get('token', ''),
+  wakeWord: store.get('wakeWord', false),
+  chat: store.get('chat', []),                  // [{text, isUser, wasCommand}]
+  memories: store.get('memories', [])            // [{id, text}]
+};
+
+function persist(){
+  store.set('lang', state.lang);
+  store.set('aiMode', state.aiMode);
+  store.set('serverUrl', state.serverUrl);
+  store.set('token', state.token);
+  store.set('wakeWord', state.wakeWord);
+  store.set('chat', state.chat);
+  store.set('memories', state.memories);
+}
+
+// ---------- DOM refs ----------
+const micBtn = document.getElementById('micBtn');
+const statusText = document.getElementById('statusText');
+const errorText = document.getElementById('errorText');
+const lastReply = document.getElementById('lastReply');
+const chatLog = document.getElementById('chatLog');
+const unsupported = document.getElementById('unsupported');
+const setup = document.getElementById('setup');
+
+// ---------- Screen navigation ----------
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.onclick = () => switchScreen(btn.dataset.screen);
+});
+function switchScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.querySelector(`.navbtn[data-screen="${name}"]`).classList.add('active');
+  if(name==='chat') renderChat();
+  if(name==='memories') renderMemories();
+  if(name==='settings') renderSettings();
+}
+document.getElementById('menuBtn').onclick = () => switchScreen('settings');
+document.getElementById('notifBtn').onclick = () => switchScreen('memories');
+
+// ---------- Setup overlay ----------
+document.getElementById('setupStart').onclick = () => { setup.style.display='none'; };
+if(store.get('setupDone', false)) setup.style.display='none';
+document.getElementById('setupStart').addEventListener('click', ()=> store.set('setupDone', true));
+
+// ---------- Assistant state machine ----------
+const ASSISTANT_STATE = { IDLE:'idle', LISTENING:'listening', THINKING:'thinking', SPEAKING:'speaking' };
+let assistantState = ASSISTANT_STATE.IDLE;
+
+function setAssistantState(s){
+  assistantState = s;
+  micBtn.classList.remove('listening','speaking','thinking');
+  if(s===ASSISTANT_STATE.LISTENING) micBtn.classList.add('listening');
+  if(s===ASSISTANT_STATE.SPEAKING) micBtn.classList.add('speaking');
+  if(s===ASSISTANT_STATE.THINKING) micBtn.classList.add('thinking');
+  statusText.textContent = {
+    idle: 'बोलने के लिए माइक दबाएँ, या "Jaanu" बोलें',
+    listening: 'सुन रही हूँ...',
+    thinking: 'सोच रही हूँ...',
+    speaking: 'बोल रही हूँ...'
+  }[s];
+  drawAvatar();
+}
+
+// =============================================================================
+// ORIGINAL AVATAR — animated concentric ring on <canvas>, matching the
+// Android app's AssistantAvatar.kt design (violet/coral gradient ring),
+// not based on any existing assistant's character or artwork.
+// =============================================================================
+const canvas = document.getElementById('avatarCanvas');
+const ctx = canvas.getContext('2d');
+let avatarAngle = 0;
+function drawAvatar(){
+  const w = canvas.width, h = canvas.height, cx = w/2, cy = h/2;
+  ctx.clearRect(0,0,w,h);
+  const speed = { idle:0.004, listening:0.02, thinking:0.035, speaking:0.028 }[assistantState];
+  avatarAngle += speed * 16;
+
+  const baseR = w*0.34;
+  const pulse = 1 + Math.sin(Date.now()/(assistantState==='idle'?900:350)) * (assistantState==='idle'?0.01:0.035);
+  const r = baseR * pulse;
+
+  const grad = ctx.createConicGradient ? ctx.createConicGradient(avatarAngle, cx, cy) : null;
+  const colorMap = { idle:'#6C4CF0', listening:'#9B5DE5', thinking:'#2DD4BF', speaking:'#FF6F61' };
+  const c1 = colorMap[assistantState];
+  if(grad){
+    grad.addColorStop(0, c1);
+    grad.addColorStop(0.33, '#9B5DE5');
+    grad.addColorStop(0.66, '#FF6F61');
+    grad.addColorStop(1, c1);
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = c1;
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fill();
+
+  const innerGrad = ctx.createRadialGradient(cx,cy,0,cx,cy,r*0.62);
+  innerGrad.addColorStop(0, 'rgba(11,10,18,0.92)');
+  innerGrad.addColorStop(1, '#15131F');
+  ctx.fillStyle = innerGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r*0.62, 0, Math.PI*2);
+  ctx.fill();
+
+  requestAnimationFrame(drawAvatar);
+}
+drawAvatar();
+
+// ---------- Speech recognition (STT) ----------
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+let isListening = false;
+
+if(!SpeechRecognitionCtor){
+  unsupported.style.display = 'flex';
+} else {
+  setupRecognition();
+}
+
+function setupRecognition(){
+  recognition = new SpeechRecognitionCtor();
+  recognition.lang = state.lang;
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => { isListening = true; setAssistantState(ASSISTANT_STATE.LISTENING); };
+  recognition.onend = () => { isListening = false; if(assistantState===ASSISTANT_STATE.LISTENING) setAssistantState(ASSISTANT_STATE.IDLE); };
+  recognition.onerror = (e) => {
+    isListening = false;
+    setAssistantState(ASSISTANT_STATE.IDLE);
+    const msg = {
+      'no-speech':'कुछ सुनाई नहीं दिया, फिर कोशिश करें',
+      'not-allowed':'माइक्रोफ़ोन की अनुमति ज़रूरी है — ब्राउज़र सेटिंग्स में अनुमति दें',
+      'service-not-allowed':'माइक्रोफ़ोन की अनुमति ज़रूरी है — ब्राउज़र सेटिंग्स में अनुमति दें',
+      'network':'इंटरनेट कनेक्शन जाँचें'
+    }[e.error] || 'आवाज़ पहचानने में समस्या आई';
+    errorText.textContent = msg;
+  };
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    errorText.textContent = '';
+    onUserUtterance(transcript);
+  };
+}
+
+micBtn.onclick = () => {
+  if(!recognition) return;
+  window.speechSynthesis.cancel();
+  if(isListening){ recognition.stop(); return; }
+  errorText.textContent = '';
+  try{ recognition.start(); }catch(e){ /* already running */ }
+};
+
+document.querySelectorAll('.chip[data-phrase]').forEach(chip=>{
+  chip.onclick = () => onUserUtterance(chip.dataset.phrase);
+});
+
+// ---------- Text-to-speech (TTS) — warm hi-IN female voice ----------
+let selectedVoice = null;
+function pickVoice(){
+  const voices = window.speechSynthesis.getVoices();
+  if(!voices.length) return null;
+  return voices.find(v=>v.lang==='hi-IN' && /female|woman/i.test(v.name))
+      || voices.find(v=>v.lang===state.lang)
+      || voices.find(v=>v.lang.startsWith('hi'))
+      || voices[0];
+}
+window.speechSynthesis.onvoiceschanged = () => { selectedVoice = pickVoice(); };
+selectedVoice = pickVoice();
+
+function speak(text){
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = state.lang;
+  u.pitch = 1.08;
+  u.rate = 1.0;
+  if(selectedVoice) u.voice = selectedVoice;
+  u.onstart = () => setAssistantState(ASSISTANT_STATE.SPEAKING);
+  u.onend = () => setAssistantState(ASSISTANT_STATE.IDLE);
+  window.speechSynthesis.speak(u);
+}
+
+// =============================================================================
+// PHONE CONTROL LAYER — Android intent:// / tel: / sms: links.
+// Works in Chrome on Android. Browsers cannot silently place a call or send
+// an SMS (real Android permissions like CALL_PHONE only exist in a native
+// app) — tel:/sms: links open the dialer/messaging app with things
+// pre-filled, and the user completes the action. This is stated honestly
+// in each command's spoken response below, never claimed as done.
+// =============================================================================
+function openLink(url, fallback){
+  try{ window.location.href = url; }catch(e){ if(fallback) window.location.href = fallback; }
+}
+const APPS = {
+  youtube:  () => openLink('intent://www.youtube.com/#Intent;package=com.google.android.youtube;scheme=https;end','https://www.youtube.com'),
+  chrome:   () => openLink('intent://www.google.com/#Intent;package=com.android.chrome;scheme=https;end','https://www.google.com'),
+  settings: () => openLink('intent:#Intent;action=android.settings.SETTINGS;end',''),
+  camera:   () => openLink('intent:#Intent;action=android.media.action.IMAGE_CAPTURE;end',''),
+  whatsapp: () => openLink('intent://send#Intent;package=com.whatsapp;scheme=smsto;end',''),
+  maps:     () => openLink('intent://maps.google.com/#Intent;package=com.google.android.apps.maps;scheme=https;end','https://maps.google.com'),
+  gmail:    () => openLink('intent://mail.google.com/#Intent;package=com.google.android.gm;scheme=https;end','https://mail.google.com'),
+  spotify:  () => openLink('intent://open.spotify.com/#Intent;package=com.spotify.music;scheme=https;end','https://open.spotify.com'),
+};
+
+// =============================================================================
+// COMMAND REGISTRY — mirrors CommandRegistry.kt / commands/impl/*.kt.
+// Checked in order, first match wins. To add a command: push a new
+// {id, match, run} object into COMMANDS below. Nothing else needs to change.
+// =============================================================================
+const numberRegex = /\b\d{10}\b/;
+
+const COMMANDS = [
+  {
+    id: 'OPEN_APP',
+    match: t => /खोल|open|चला/i.test(t) && /youtube|यूट्यूब|chrome|क्रोम|camera|कैमरा|settings|सेटिंग|maps|मैप्स|gmail|spotify/i.test(t),
+    run: t => {
+      if(/camera|कैमरा/i.test(t)){ APPS.camera(); return {text:'Camera खोल रही हूँ', command:true}; }
+      if(/settings|सेटिंग/i.test(t)){ APPS.settings(); return {text:'Settings खोल रही हूँ', command:true}; }
+      if(/youtube|यूट्यूब/i.test(t)){ APPS.youtube(); return {text:'YouTube खोल रही हूँ', command:true}; }
+      if(/chrome|क्रोम/i.test(t)){ APPS.chrome(); return {text:'Chrome खोल रही हूँ', command:true}; }
+      if(/maps|मैप्स/i.test(t)){ APPS.maps(); return {text:'Maps खोल रही हूँ', command:true}; }
+      if(/gmail/i.test(t)){ APPS.gmail(); return {text:'Gmail खोल रही हूँ', command:true}; }
+      if(/spotify/i.test(t)){ APPS.spotify(); return {text:'Spotify खोल रही हूँ', command:true}; }
+      return {text:'मुझे समझ नहीं आया कौन सा ऐप खोलना है।', command:true};
+    }
+  },
+  {
+    id: 'OPEN_WHATSAPP',
+    match: t => /whatsapp|व्हाट्सएप/i.test(t),
+    run: t => {
+      const num = numberRegex.exec(t)?.[0];
+      const msgMatch = /['"](.+?)['"]/.exec(t);
+      const msg = msgMatch ? msgMatch[1] : '';
+      const url = num ? `https://wa.me/91${num}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      openLink(url);
+      return {text:'WhatsApp खोल रही हूँ, मैसेज तैयार कर दिया है।', command:true};
+    }
+  },
+  {
+    id: 'CALL_CONTACT',
+    match: t => /call|कॉल|phone karo|फ़ोन करो/i.test(t),
+    run: t => {
+      const num = numberRegex.exec(t)?.[0];
+      if(!num) return {text:'मुझे किसे कॉल करना है, नंबर साफ़ नहीं समझ आया। कृपया 10 अंकों का नंबर बोलें।', command:true};
+      openLink(`tel:${num}`);
+      return {text:`${num} के लिए डायलर खोल दिया है — ब्राउज़र सीधे कॉल नहीं लगा सकता, कॉल बटन आप दबाएँ।`, command:true};
+    }
+  },
+  {
+    id: 'SEND_SMS',
+    match: t => /message bhejo|मैसेज भेजो|sms bhejo|send sms|send message/i.test(t),
+    run: t => {
+      const num = numberRegex.exec(t)?.[0];
+      if(!num) return {text:'मुझे किसे मैसेज भेजना है साफ़ नहीं हुआ — नंबर बताएँ।', command:true};
+      const msgMatch = /['"](.+?)['"]/.exec(t);
+      const body = msgMatch ? `&body=${encodeURIComponent(msgMatch[1])}` : '';
+      openLink(`sms:${num}?${body}`);
+      return {text:`${num} के लिए मैसेज ऐप खोल दिया है — भेजने के लिए आप कन्फ़र्म करें।`, command:true};
+    }
+  },
+  {
+    id: 'OPEN_WEBSITE',
+    match: t => /[a-zA-Z0-9-]+\.(com|in|org|net|co|io)/i.test(t),
+    run: t => {
+      const domain = /[a-zA-Z0-9-]+\.(com|in|org|net|co|io)/i.exec(t)[0];
+      openLink(domain.startsWith('http') ? domain : 'https://'+domain);
+      return {text:`${domain} खोल रही हूँ।`, command:true};
+    }
+  },
+  {
+    id: 'PLAY_MUSIC',
+    match: t => /gaana|गाना|gana|music|song|बजाओ|play/i.test(t),
+    run: t => {
+      const q = t.replace(/jaanu|gaana|गाना|gana|music|song|बजाओ|play/gi,'').trim();
+      openLink(`https://www.youtube.com/results?search_query=${encodeURIComponent(q||'music')}`);
+      return {text: q ? `${q} बजा रही हूँ।` : 'गाना बजा रही हूँ।', command:true};
+    }
+  },
+  {
+    id: 'SEARCH_WEB',
+    match: t => /search karo|search for|google karo/i.test(t),
+    run: t => {
+      let q = t.toLowerCase().replace(/search karo|search for|google karo/g,'').trim();
+      if(!q) return {text:'आप क्या खोजना चाहते हैं यह साफ़ नहीं हुआ।', command:true};
+      openLink(`https://www.google.com/search?q=${encodeURIComponent(q)}`);
+      return {text:`${q} के बारे में खोज रही हूँ।`, command:true};
+    }
+  },
+  {
+    id: 'SET_REMINDER',
+    match: t => /yaad dila|याद दिला|remind me|reminder set/i.test(t),
+    run: t => {
+      const text = t.replace(/yaad dila|याद दिला|remind me|reminder set/gi,'').trim() || 'Reminder';
+      state.memories.push({id:Date.now(), text});
+      persist();
+      // Browser limitation: this only fires while the tab stays open.
+      // Native Android AlarmManager (see the Kotlin app) works even when closed.
+      if('Notification' in window){
+        Notification.requestPermission().then(perm=>{
+          if(perm==='granted') new Notification('Jaanu याद दिला रही है', {body:text});
+        });
+      }
+      return {text:'मैंने इसे Memories में सेव कर लिया है। (ब्राउज़र में यह टैब खुला रहने पर ही अलार्म जैसा notification देगी — Android ऐप वर्ज़न में यह बैकग्राउंड में भी काम करेगा।)', command:true};
+    }
+  },
+  {
+    id: 'GET_TIME',
+    match: t => /time kya|टाइम क्या|समय क्या|what time|current time/i.test(t),
+    run: () => ({text:'अभी समय है ' + new Date().toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}), command:true})
+  },
+  {
+    id: 'GET_DATE',
+    match: t => /date kya|डेट क्या|तारीख़|tareekh|what date|today's date/i.test(t),
+    run: () => ({text:'आज है ' + new Date().toLocaleDateString('hi-IN',{day:'numeric',month:'long',year:'numeric',weekday:'long'}), command:true})
+  },
+];
+
+function tryCommand(text){
+  const lower = text.toLowerCase();
+  const cmd = COMMANDS.find(c => c.match(lower));
+  return cmd ? cmd.run(text) : null;
+}
+
+// =============================================================================
+// AI ROUTER — mirrors AiRouter.kt: commands first, then whichever AI
+// backend is configured. No API key required by default.
+// =============================================================================
+async function route(userText){
+  const commandResult = tryCommand(userText);
+  if(commandResult) return commandResult;
+
+  if(state.aiMode === 'cloud'){
+    return await callCloudAi(userText);
+  }
+  return {
+    text: 'मुझे यह कमांड समझ नहीं आई। अभी मैं सिर्फ़ सीधे कमांड्स समझ सकती हूँ — बातचीत के लिए Settings में Cloud AI चालू करें।',
+    command: false
+  };
+}
+
+async function callCloudAi(userText){
+  if(!state.serverUrl){
+    return {text:'Cloud AI server अभी सेट नहीं है — Settings में अपना server URL डालें।', command:false};
+  }
+  if(!state.serverUrl.startsWith('https://')){
+    return {text:'Server URL में HTTPS ज़रूरी है।', command:false};
+  }
+  if(!state.token){
+    return {text:'Cloud AI से जुड़ने के लिए auth token चाहिए — Settings में डालें।', command:false};
+  }
+  try{
+    const history = state.chat.slice(-10).map(m => ({role: m.isUser?'user':'assistant', text: m.text}));
+    const res = await fetch(state.serverUrl.replace(/\/$/,'') + '/v1/chat', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.token},
+      body: JSON.stringify({message:userText, conversationHistory:history, language:'hi-en'})
+    });
+    if(!res.ok){
+      return {text:`Server से जवाब नहीं मिल पाया (कोड ${res.status})।`, command:false};
+    }
+    const data = await res.json();
+    return {text: data.reply || 'माफ़ करें, समझ नहीं आया।', command:false};
+  }catch(e){
+    return {text:'Cloud सर्वर से कनेक्ट नहीं हो पाया — इंटरनेट या server URL जाँचें।', command:false};
+  }
+}
+
+// ---------- Main dispatch (shared by mic + chat text + quick actions) ----------
+async function onUserUtterance(text){
+  if(!text || !text.trim()) return;
+  addChatMessage(text, true, false);
+
+  lastReply.style.display = 'none';
+  setAssistantState(ASSISTANT_STATE.THINKING);
+  const result = await route(text);
+  setAssistantState(ASSISTANT_STATE.IDLE);
+
+  addChatMessage(result.text, false, result.command);
+  lastReply.textContent = result.text;
+  lastReply.style.display = 'block';
+  speak(result.text);
+}
+
+function addChatMessage(text, isUser, wasCommand){
+  state.chat.push({text, isUser, wasCommand});
+  persist();
+  if(document.getElementById('screen-chat').classList.contains('active')) renderChat();
+}
+
+// ---------- Chat screen rendering ----------
+function renderChat(){
+  chatLog.innerHTML = '';
+  state.chat.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'bubble ' + (m.isUser?'user':'jaanu') + (m.wasCommand?' command':'');
+    div.textContent = m.text;
+    chatLog.appendChild(div);
+  });
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+document.getElementById === undefined; // no-op guard (unused)
+</script>
+
+<!-- Chat input row (fixed, shown only meaningfully on chat screen but harmless elsewhere) -->
+<div class="chat-input-row" id="chatInputRow">
+  <button class="roundbtn" id="chatMicBtn" aria-label="बोलकर लिखें">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path></svg>
+  </button>
+  <input type="text" id="chatText" placeholder="लिखें या बोलें...">
+  <button class="roundbtn send" id="chatSendBtn" aria-label="भेजें">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+  </button>
+</div>
+
+<script>
+// ---------- Chat input wiring ----------
+document.getElementById('chatSendBtn').onclick = () => {
+  const input = document.getElementById('chatText');
+  if(input.value.trim()){ onUserUtterance(input.value.trim()); input.value=''; }
+};
+document.getElementById('chatText').addEventListener('keydown', e => {
+  if(e.key==='Enter'){ document.getElementById('chatSendBtn').click(); }
+});
+document.getElementById('chatMicBtn').onclick = () => micBtn.click();
+
+// Only show the chat input row while on the Chat screen.
+function updateChatInputVisibility(){
+  const onChat = document.getElementById('screen-chat').classList.contains('active');
+  document.getElementById('chatInputRow').style.display = onChat ? 'flex' : 'none';
+}
+document.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', updateChatInputVisibility));
+updateChatInputVisibility();
+
+// ---------- Settings screen wiring ----------
+function renderSettings(){
+  document.getElementById('langHi').style.outline = state.lang==='hi-IN' ? '2px solid var(--violet)' : 'none';
+  document.getElementById('langEn').style.outline = state.lang==='en-IN' ? '2px solid var(--violet)' : 'none';
+  document.querySelectorAll('.radio-row[data-mode]').forEach(row=>{
+    row.querySelector('.radio-dot').classList.toggle('selected', row.dataset.mode===state.aiMode);
+  });
+  document.getElementById('cloudFields').style.display = state.aiMode==='cloud' ? 'block' : 'none';
+  document.getElementById('serverUrlInput').value = state.serverUrl;
+  document.getElementById('wakeSwitch').classList.toggle('on', state.wakeWord);
+}
+
+document.getElementById('langHi').onclick = () => { state.lang='hi-IN'; persist(); if(recognition) recognition.lang=state.lang; renderSettings(); };
+document.getElementById('langEn').onclick = () => { state.lang='en-IN'; persist(); if(recognition) recognition.lang=state.lang; renderSettings(); };
+
+document.querySelectorAll('.radio-row[data-mode]').forEach(row=>{
+  row.onclick = () => { state.aiMode = row.dataset.mode; persist(); renderSettings(); };
+});
+
+document.getElementById('saveCloudBtn').onclick = () => {
+  state.serverUrl = document.getElementById('serverUrlInput').value.trim();
+  const tok = document.getElementById('tokenInput').value.trim();
+  if(tok) state.token = tok;
+  persist();
+  document.getElementById('tokenInput').value = '';
+};
+
+document.getElementById('wakeSwitch').onclick = () => {
+  state.wakeWord = !state.wakeWord;
+  persist();
+  renderSettings();
+  document.getElementById('wakeInfo').style.display = state.wakeWord ? 'block' : 'none';
+  if(state.wakeWord) startWakeWordLoop(); else stopWakeWordLoop();
+};
+
+document.getElementById('clearAllBtn').onclick = () => {
+  if(!confirm('सब कुछ मिटाना है? यह वापस नहीं हो सकता।')) return;
+  localStorage.clear();
+  state = { lang:'hi-IN', aiMode:'offline', serverUrl:'', token:'', wakeWord:false, chat:[], memories:[] };
+  persist();
+  renderChat(); renderSettings(); renderMemories();
+};
+
+// ---------- Memories screen wiring ----------
+function renderMemories(){
+  const list = document.getElementById('memoriesList');
+  const empty = document.getElementById('memoriesEmpty');
+  list.innerHTML = '';
+  if(state.memories.length===0){ empty.style.display='block'; return; }
+  empty.style.display='none';
+  state.memories.forEach(item=>{
+    const row = document.createElement('div');
+    row.className = 'memory-item';
+    row.innerHTML = `<div class="txt"></div><button class="del">✕</button>`;
+    row.querySelector('.txt').textContent = item.text;
+    row.querySelector('.del').onclick = () => {
+      state.memories = state.memories.filter(m=>m.id!==item.id);
+      persist(); renderMemories();
+    };
+    list.appendChild(row);
+  });
+}
+
+// =============================================================================
+// WAKE WORD — same honest limitation as the native app's WakeWordService.kt:
+// no true always-on hardware detection is possible for a web page. This
+// loop only works while the tab is open and in the foreground, restarts
+// SpeechRecognition repeatedly, and checks each transcript for "jaanu".
+// =============================================================================
+let wakeWordActive = false;
+function startWakeWordLoop(){
+  if(!recognition || wakeWordActive) return;
+  wakeWordActive = true;
+  loopListen();
+}
+function stopWakeWordLoop(){ wakeWordActive = false; }
+
+function loopListen(){
+  if(!wakeWordActive) return;
+  if(isListening) { setTimeout(loopListen, 500); return; }
+  const wakeRecognition = new SpeechRecognitionCtor();
+  wakeRecognition.lang = state.lang;
+  wakeRecognition.continuous = false;
+  wakeRecognition.onresult = (e) => {
+    const t = e.results[0][0].transcript.toLowerCase();
+    if(/jaanu|जानू|जानु/.test(t)){
+      // brief visual pulse to confirm wake detection, then start real listening
+      statusText.textContent = 'हाँ? मैं सुन रही हूँ...';
+      speak('जी बोलिए');
+      setTimeout(() => micBtn.click(), 900);
+    }
+  };
+  wakeRecognition.onerror = () => {};
+  wakeRecognition.onend = () => { if(wakeWordActive) setTimeout(loopListen, 300); };
+  try{ wakeRecognition.start(); }catch(e){ setTimeout(loopListen, 1000); }
+}
+
+// ---------- Initial render ----------
+renderChat();
+renderSettings();
+renderMemories();
+if(state.wakeWord) startWakeWordLoop();
+if(state.chat.length===0){
+  addChatMessage('नमस्ते! मैं Jaanu हूँ। माइक दबाकर मुझसे बात करें — या कहें "YouTube खोलो", "Chrome खोलो"।', false, false);
+  lastReply.textContent = state.chat[0].text;
+  lastReply.style.display = 'block';
+}
+</script>
+</body>
+</html>
